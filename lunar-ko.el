@@ -58,32 +58,38 @@
    "Korean terrestrial branch (identical to that of Chinese)")
 
 
-(setq dataset [   (10 . "ten")
-                  (100 . "hundred")
-                  (500 . "5 hundred")
-                  (1000 . "thousand" )
-                  (10000 . "ten thousand" ) ])
+(defun lunar-ko-find-nearest (value type &optional from to)
+  "Find the nearest and less-than-or-equal entry of VALUE from
+`korean-lunar-cache'.
 
-
-(defun find-nearest (value &optional from to)
+VALUE is an astronomical julian day number if TYPE is :solar, or
+is a Korean lunar day number if TYPE is :lunar."
   (let* ((begin (if from from 0))
-         (end (if to to (length dataset)))
+         (end (if to to (length korean-lunar-cache)))
          mid)
-    (catch 'found
-      (while (<= begin end)
-        (setq mid (/ (+ begin end) 2))
-        (let* ((pair (aref dataset mid))
-               (key (car pair)))
-          (print (format "%S-%S-%S" begin mid end))
-          (cond ((< value key) (setq end (1- mid)))
-                ((> value key) (setq begin (1+ mid)))
-                ((= value key) (throw 'found pair)))))
-
-      (print (format "mid: %S" mid))
-      (let* ((pair (aref dataset mid))
-             (key (car pair)))
-        (if (< value key)
-            (aref dataset (1- mid))
+    (flet ((cmp (type lhs rhs-pair)
+                (let ((rhs (if (eq type :solar)
+                               (car rhs-pair) (cdr rhs-pair))))
+                  (- lhs rhs))))
+      (let ((min_pair (aref korean-lunar-cache 0))
+            (max_pair (aref korean-lunar-cache 
+                            (1- (length korean-lunar-cache)))))
+        (if (or (< (cmp type value min_pair) 0)
+                (> (cmp type value max_pair) 0))
+            (error "VALUE out of range [%S - %S]" min_pair max_pair)))
+      (catch 'found
+        (while (<= begin end)
+          (setq mid (/ (+ begin end) 2))
+          (let ((pair (aref korean-lunar-cache mid)))
+            ;;(print (format "%S-%S-%S" begin mid end))
+            (let ((ret (cmp type value pair)))
+              (cond ((< ret 0) (setq end (1- mid)))
+                    ((> ret 0) (setq begin (1+ mid)))
+                    ((= ret 0) (throw 'found pair)))))))
+      ;;(print (format "mid: %S" mid))
+      (let ((pair (aref korean-lunar-cache mid)))
+        (if (< (cmp type value pair) 0)
+            (aref korean-lunar-cache (1- mid))
           pair)))))
 
 (defun lunar-ko-sexagenary-name (index)
@@ -99,11 +105,17 @@
 (defun lunar-ko-day (ldatespec)
   (cadr ldatespec))
 
-(defun lunar-ko-leap? (ldatespec)
+
+;;; TODO: recheck any code that uses `lunar-ko-leap' is correct!
+(defun lunar-ko-leap (ldatespec)
   (if (and (= (length ldatespec) 4)
            (nth 3 ldatespec))
       (lunar-ko-month ldatespec)
     nil))
+
+(defun lunar-ko-leap? (ldatespec)
+  (and (= (length ldatespec) 4)
+       (nth 3 ldatespec)))
 
 
 (defun lunar-ko-month-days (year month &optional leap)
@@ -127,12 +139,12 @@ in MONTH, LEAP is ignored."
   (let* ((val (gethash (lunar-ko-year ldatespec) korean-lunar-months))
          (lmon (car val)))
     (and (if (lunar-ko-leap? ldatespec)
-             (equal (lunar-ko-leap? ldatespec) lmon)
+             (equal (lunar-ko-leap ldatespec) lmon)
            t)
          (<= (lunar-ko-day ldatespec)
              (lunar-ko-month-days (lunar-ko-year ldatespec)
                                   (lunar-ko-month ldatespec)
-                                  (lunar-ko-leap? ldatespec))))))
+                                  (lunar-ko-leap ldatespec))))))
 
 
 (defun lunar-ko-month-index (ldatespec)
@@ -143,7 +155,7 @@ in MONTH, LEAP is ignored."
     (if lmon
         (cond ((< mon lmon) (1- mon))
               ((> mon lmon) mon)
-              ((lunar-ko-leap? ldatespec) mon)
+              ((lunar-ko-leap ldatespec) mon)
               (t (1- mon)))
       (1- mon))))
 

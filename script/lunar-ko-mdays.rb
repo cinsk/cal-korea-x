@@ -27,7 +27,7 @@ def usage(program_name)
 Dump the Korean lunar table into sqlite3 database
 Usage: #{program_name} [options]
 
-  -o, --output=DATABASE    Set the database filename to DATABASE.
+  -d, --database=DATABASE  Set the database filename to DATABASE.
                            Default: #{DEFAULT_DATABASE}
 
   -r, --range=RANGE        Set the year range of the dump
@@ -69,7 +69,7 @@ $options[:loglevel] = Logger::ERROR
 op = OptionParser.new do |opts|
   opts.banner = "Usage: #{0} [options]"
 
-  opts.on("-o", "--output=[DATABASE]") do |arg|
+  opts.on("-d", "--database=[DATABASE]") do |arg|
     $options[:database] = arg
   end
   opts.on("-r", "--range=[RANGE]") do |arg|

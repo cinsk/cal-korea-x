@@ -23,7 +23,7 @@ def usage(program_name)
 Dump the Korean lunar table into sqlite3 database
 Usage: #{program_name} [options]
 
-  -o, --output=DATABASE    Set the database filename to DATABASE.
+  -d, --database=DATABASE  Set the database filename to DATABASE.
                            Default: #{DEFAULT_DATABASE}
 
   -r, --range=RANGE        Set the year range of the dump
@@ -65,7 +65,7 @@ $options[:loglevel] = Logger::ERROR
 op = OptionParser.new do |opts|
   opts.banner = "Usage: #{0} [options]"
 
-  opts.on("-o", "--output=[DATABASE]") do |arg|
+  opts.on("-d", "--database=[DATABASE]") do |arg|
     $options[:database] = arg
   end
   opts.on("-r", "--range=[RANGE]") do |arg|
@@ -123,7 +123,7 @@ $log.debug { "DATABASE: #{$options[:database]}" }
 
 print <<EOF
 (defconst korean-lunar-cache
-  #s(hash-table size #{(($options[:range].last - $options[:range].first).abs + 1) * 13} test eql data (
+  [
 EOF
 
 sql = <<SQL
@@ -134,11 +134,11 @@ SQL
 
 #print sql
 $database.execute(sql) do | id, sol, sol_alt, lun, lun_alt, leap, text |
-  print "#{' ' * 4}#{Date.parse(sol).ajd.to_f} \"#{lun_alt}\"  ; #{sol} #{text}\n"
+  print "#{' ' * 4}(#{Date.parse(sol).ajd.to_f} . #{lun_alt})  ; #{sol} #{text}\n"
 end
 
 print <<EOF
-))
+]
   "Solar to Korean lunar cache")
 
 (provide 'lunar-ko-cache)

@@ -61,33 +61,77 @@
 (require 'lunar-ko-mdays)
 (require 'lunar-ko-cache)
 
-(defconst lunar-ko-celestial-stem
-  [("갑" . "甲")
-   ("을" . "乙")
-   ("병" . "丙")
-   ("정" . "丁")
-   ("무" . "戊")
-   ("기" . "己")
-   ("경" . "庚")
-   ("신" . "辛")
-   ("임" . "壬")
-   ("계" . "癸")]
-   "Korean celestial stem (identical to that of Chinese)")
+(defconst korean-celestial-stem [("갑" . "甲")
+                                 ("을" . "乙")
+                                 ("병" . "丙")
+                                 ("정" . "丁")
+                                 ("무" . "戊")
+                                 ("기" . "己")
+                                 ("경" . "庚")
+                                 ("신" . "辛")
+                                 ("임" . "壬")
+                                 ("계" . "癸")]
+  "Korean celestial stem (identical to that of Chinese)")
 
-(defconst lunar-ko-terrestrial-branch [("자" . "子")
-                                       ("축" . "丑")
-                                       ("인" . "寅")
-                                       ("묘" . "卯")
-                                       ("진" . "辰")
-                                       ("사" . "巳")
-                                       ("오" . "午")
-                                       ("미" . "未")
-                                       ("신" . "申")
-                                       ("유" . "酉")
-                                       ("술" . "戌")
-                                       ("해" . "亥")]
-   "Korean terrestrial branch (identical to that of Chinese)")
+(defconst korean-terrestrial-branch [("자" . "子")
+                                     ("축" . "丑")
+                                     ("인" . "寅")
+                                     ("묘" . "卯")
+                                     ("진" . "辰")
+                                     ("사" . "巳")
+                                     ("오" . "午")
+                                     ("미" . "未")
+                                     ("신" . "申")
+                                     ("유" . "酉")
+                                     ("술" . "戌")
+                                     ("해" . "亥")]
+  "Korean terrestrial branch (identical to that of Chinese)")
 
+(defun lunar-ko-sexagesimal-index (index)
+  "Get the Korean sexagesimal name from INDEX.
+
+INDEX should be 0 or less than 60.   It returns (KOREAN . CHINESE),
+where KOREAN is the korean name and CHINESE is the chinese characters."
+  (let ((cel (aref korean-celestial-stem (mod index 10)))
+        (ter (aref korean-terrestrial-branch (mod index 12))))
+    (cons (concat (car cel) (car ter))
+          (concat (cdr cel) (cdr ter)))))
+
+(defun lunar-ko-sexagesimal-year (ldatespec)
+  "Return the name of the Korean sexagesimal name.
+
+The returned value has the form '(KOREAN-NAME . CHINESE-NAME)'"
+  (lunar-ko-sexagesimal-index
+   (mod (- (+ (mod (lunar-ko-year ldatespec) 60) 60) 4) 60)))
+
+(defun lunar-ko-sexagesimal-month (ldatespec)
+  (let ((year (lunar-ko-year ldatespec))
+        (month (lunar-ko-month ldatespec)))
+    (lunar-ko-sexagesimal-index
+     (- (+ (* (mod (- (+ (mod year 5) 5) 3) 5) 12) month) 11))))
+
+(defun lunar-ko-sexagesimal-day (ldatespec &optional cache)
+  (let* ((entry (or cache
+                    (gethash (lunar-ko-year ldatespec) 
+                             korean-lunar-months)))
+         (base (cadr entry)))
+    (lunar-ko-sexagesimal-index
+     (mod (+ (mod (lunar-ko-days-to ldatespec entry) 60) base) 60))))
+              
+
+(defun lunar-ko-sexagesimal-name (ldatespec &optional chinese cache)
+  (let ((year (lunar-ko-sexagesimal-year ldatespec))
+        (month (lunar-ko-sexagesimal-month ldatespec))
+        (day (lunar-ko-sexagesimal-day ldatespec cache)))
+    (if chinese
+        (format "%s(%s)년 %s(%s)월 %s(%s)일"
+                (car year) (cdr year)
+                (car month) (cdr month)
+                (car day) (cdr day))
+      (format "%s년 %s월 %s일"
+              (car year) (car month) (car day)))))
+
+
 
 (defun gregorian-to-julian (date)
   "Convert gregorian date in the form of (MONTH DAY YEAR) to
@@ -100,6 +144,8 @@ Julian day number.  See also `calendar-astro-date-string'."
 of (MONTH DAY YEAR).  See also `calendar-astro-goto-day-number'."
   (calendar-gregorian-from-absolute 
    (floor (calendar-astro-to-absolute date))))
+
+
 
 (defun lunar-ko-find-nearest (value type &optional from to)
   "Find the nearest and less-than-or-equal entry of VALUE from
@@ -135,11 +181,8 @@ is a Korean lunar day number if TYPE is :lunar."
             (aref korean-lunar-cache (1- mid))
           pair)))))
 
-(defun lunar-ko-sexagenary-name (index)
-  (let ((cel (aref lunar-ko-celestial-stem (mod index 10)))
-        (ter (aref lunar-ko-terrestrial-branch (mod index 12))))
-    (cons (concat (car cel) (car ter))
-          (concat (cdr cel) (cdr ter)))))
+
+
 
 (defun lunar-ko-year (ldatespec)
   (caddr ldatespec))
@@ -169,7 +212,7 @@ The optional CACHE specifies the pre-acquired hash entry if any."
   (let* ((entry (or cache 
                     (gethash (lunar-ko-year ldatespec) korean-lunar-months)))
          (lmon (car entry))
-         (vec (cdr entry))
+         (vec (cddr entry))
          (month (lunar-ko-month ldatespec)))
     (assert (< month 13) t "out of range: %S")
     (assert (> month 0) t "out of range: %S")
@@ -183,8 +226,11 @@ The optional CACHE specifies the pre-acquired hash entry if any."
 
 The optional CACHE specifies the pre-acquired hash entry if any."
   (let ((entry (or cache
-                   (gethash (lunar-ko-year ldatespec) korean-lunar-months))))
-    (aref (cdr entry) (lunar-ko-month-index ldatespec entry))))
+                   (gethash (lunar-ko-year ldatespec) 
+                            korean-lunar-months))))
+    (aref (cddr entry) (lunar-ko-month-index ldatespec entry))))
+
+
 
 (defun lunar-ko-impl-days (impl &optional cache)
   "Return the number of days in the lunar month from internal
@@ -193,7 +239,7 @@ representation, IMPL.
 The optional CACHE specifies the pre-acquired hash entry if any."
   (let ((entry (or cache
                    (gethash (lunar-ko-year impl) korean-lunar-months))))
-    (aref (cdr entry) (lunar-ko-month impl))))
+    (aref (cddr entry) (lunar-ko-month impl))))
 
     
 (defun lunar-ko-date-to-impl (ldatespec &optional cache)
@@ -227,7 +273,7 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
     (while (> days 0)
       (let* ((year (lunar-ko-year date))
              (entry (gethash year korean-lunar-months))
-             (vec (cdr entry))
+             (vec (cddr entry))
              (midx (lunar-ko-month date))
              (remain-days (- (aref vec midx) (lunar-ko-day date))))
         (let ((mdays (lunar-ko-impl-days date))
@@ -247,6 +293,7 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
               (setq date (list 0 day (1+ year))))))))
     (lunar-ko-impl-to-date date)))
 
+
 
 (defun lunar-ko-valid? (ldatespec)
   "Return t if the lunar date LDATESPEC is actually existed."
@@ -260,19 +307,7 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
                                   (lunar-ko-month ldatespec)
                                   (lunar-ko-leap ldatespec))))))
 
-
-(defun lunar-ko-month-index (ldatespec)
-  (let* ((val (gethash (lunar-ko-year ldatespec) korean-lunar-months))
-         (mon (lunar-ko-month ldatespec))
-         (lmon (car val))
-         (mdays (cdr val)))
-    (if lmon
-        (cond ((< mon lmon) (1- mon))
-              ((> mon lmon) mon)
-              ((lunar-ko-leap ldatespec) mon)
-              (t (1- mon)))
-      (1- mon))))
-
+
 
 (defun lunar-ko-date-to-kld (ldatespec)
   (+ (* (lunar-ko-year ldatespec) 100000)
@@ -296,12 +331,14 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
                       (round (- ajd (car pair))))))
 
 
-(defun lunar-ko-days-to (ldatespec)
+(defun lunar-ko-days-to (ldatespec &optional cache)
   "Return number of days from the beginning of the lunar year to LDATESPEC.
 
 The date of LDATESPEC is not counted."
-  (let* ((entry (gethash (lunar-ko-year ldatespec) korean-lunar-months))
-         (vec (cdr entry))
+  (let* ((entry (or cache
+                    (gethash (lunar-ko-year ldatespec) 
+                             korean-lunar-months)))
+         (vec (cddr entry))
          (idx (lunar-ko-month-index ldatespec entry))
          (days 0))
     (1- (+ (dotimes (i idx days)
@@ -314,7 +351,7 @@ The date of LDATESPEC is not counted."
 
 The date of LDATESPEC is counted."
   (let* ((entry (gethash (lunar-ko-year ldatespec) korean-lunar-months))
-         (vec (cdr entry))
+         (vec (cddr entry))
          (idx (lunar-ko-month-index ldatespec entry))
          (days 0))
     (+ (- (aref vec idx) (lunar-ko-day ldatespec)) 
@@ -332,8 +369,158 @@ YEAR1 is inclusive, and YEAR2 is exclusive."
         (days 0))
     (dotimes (i (- end start) days)
       (setq days (+ days
-                    (reduce #'+ (cdr (gethash (+ i start)
-                                              korean-lunar-months))))))))
+                    (reduce #'+ (cddr (gethash (+ i start)
+                                               korean-lunar-months))))))))
+
+
+;; These two variables governs `calenday-day-name' to return the
+;; day name of the week.
+;;
+;; It turns out that modifying `calendar-day-name-array' and
+;; `calendar-day-abbrev-array' is not good idea.  If we do, the layout
+;; of calendar will be not aligned correctly, unless the Korean glyphs
+;; always have double width of the western glyph.
+(when nil
+  (setq calendar-day-abbrev-array [ nil nil nil nil nil nil nil ]
+        calendar-day-name-array ["일요일" "월요일" "화요일" "수요일" 
+                                 "목요일" "금요일" "토요일"]))
+
+(defconst cal-korea-short-day-names
+  ["일" "월" "화" "수" "목" "금" "토"]
+  "The abbreviated Korean week name")
+;;(defconst cal-korea-month-names
+;;  ["일월" "이월" "삼월" "사월" "오월" "유월" "칠월" "팔월" "구월" "시월" "십일월" "십이월"]
+;;  "The Korean month name")
+
+(setq calendar-month-name-array
+      ["1월" "2월" "3월" "4월" "5월" "6월" "7월" "8월" "9월" "10월" "11월" "12월"])
+      
+(defun cal-korea-day-name (date)
+  "Korean day name in a week, like \"월요일\"."
+  (concat (aref cal-korea-short-day-names (calendar-day-of-week date))
+          "요일"))
+
+(defun cal-korea-month-name (month &optional abbrev)
+  (if abbrev
+      (format "%d월" month)
+    (aref cal-korea-month-names (1- month))))
+
+(defun cal-korea-x-calendar-display-form (date)
+  (if (equal date '(0 0 0))
+      ""
+    (format "%04d년 %02d월 %02d일 %s"
+            (calendar-extract-year date)
+            (calendar-extract-month date)
+            (calendar-extract-day date)
+            (cal-korea-day-name date))))
+
+(setq calendar-date-display-form
+      '((cal-korea-x-calendar-display-form 
+         (mapcar (lambda (el) (string-to-number el))
+                   (list month day year)))))
+
+(setq calendar-mode-line-format
+      (list
+       (calendar-mode-line-entry 'calendar-scroll-right "이전 달" "<")
+       "달력"
+       (concat
+        (calendar-mode-line-entry 'calendar-goto-info-node "달력 도움말"
+                                  nil "도움말")
+        " / "
+        (calendar-mode-line-entry 'calendar-other-month "다른 달로 가기"
+                                  nil "다른 달")
+        " / "
+        (calendar-mode-line-entry 'calendar-goto-today "오늘로 가기"
+                                  nil "오늘"))
+       ;;'(calendar-date-string (calendar-current-date) t)
+       '(calendar-date-string date t)
+       (calendar-mode-line-entry 'calendar-scroll-left "다음 달" ">")))
+
+(add-hook 'calendar-move-hook 'calendar-update-mode-line)
+(add-hook 'calendar-initial-window-hook 'calendar-update-mode-line)
+
+
+;;
+;; WARNING: Until Emacs provides a way to customize the calendar header,
+;; there's no way to display custom calendar header.
+;;
+;; This `calendar-generate-month' is directly copied from lisp/calender.el
+;; of "GNU Emacs 23.3.1 (i686-pc-linux-gnu, GTK+ Version 2.22.1)", 
+;; and modified to use custom calendar header.
+;;
+;; See also http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9510
+;;
+
+(defcustom calendar-month-header-format
+  (list '(format "%s %d" (calendar-month-name month) year))
+  "The header line of the calendar.
+This is a list of items that evaluate to strings.  During
+evaluation, the variable `month' and `year' are available as the
+month and year of the calendar.")
+
+(defun calendar-generate-month (month year indent)
+  "Produce a calendar for MONTH, YEAR on the Gregorian calendar.
+The calendar is inserted at the top of the buffer in which point is currently
+located, but indented INDENT spaces.  The indentation is done from the first
+character on the line and does not disturb the first INDENT characters on the
+line."
+  (let ((blank-days                     ; at start of month
+         (mod
+          (- (calendar-day-of-week (list month 1 year))
+             calendar-week-start-day)
+          7))
+         (last (calendar-last-day-of-month month year))
+         (trunc (min calendar-intermonth-spacing
+                     (1- calendar-left-margin)))
+         (day 1)
+         string)
+   (goto-char (point-min))
+   (calendar-move-to-column indent)
+   (insert
+    (calendar-string-spread
+     (mapcar 'eval calendar-month-header-format)
+     ?\s calendar-month-digit-width))
+   (calendar-ensure-newline)
+   (calendar-insert-at-column indent calendar-intermonth-header trunc)
+   ;; Use the first two characters of each day to head the columns.
+   (dotimes (i 7)
+     (insert
+      (progn
+        (setq string
+              (calendar-day-name (mod (+ calendar-week-start-day i) 7) nil t))
+        (if enable-multibyte-characters
+            (truncate-string-to-width string calendar-day-header-width)
+          (substring string 0 calendar-day-header-width)))
+      (make-string (- calendar-column-width calendar-day-header-width) ?\s)))
+   (calendar-ensure-newline)
+   (calendar-insert-at-column indent calendar-intermonth-text trunc)
+   ;; Add blank days before the first of the month.
+   (insert (make-string (* blank-days calendar-column-width) ?\s))
+   ;; Put in the days of the month.
+   (dotimes (i last)
+     (setq day (1+ i))
+     ;; TODO should numbers be left-justified, centered...?
+     (insert (format (format "%%%dd%%s" calendar-day-digit-width) day
+                     (make-string
+                      (- calendar-column-width calendar-day-digit-width) ?\s)))
+     ;; 'date property prevents intermonth text confusing re-searches.
+     ;; (Tried intangible, it did not really work.)
+     (set-text-properties
+      (- (point) (1+ calendar-day-digit-width)) (1- (point))
+      `(mouse-face highlight help-echo ,(eval calendar-date-echo-text)
+                   date t))
+     (when (and (zerop (mod (+ day blank-days) 7))
+                (/= day last))
+       (calendar-ensure-newline)
+       (setq day (1+ day))              ; first day of next week
+       (calendar-insert-at-column indent calendar-intermonth-text trunc)))))
+
+;;(setq calendar-month-header-format
+;;      (list '(format "%d년 %s" year (cal-korea-month-name month))))
+
+(setq calendar-month-header-format
+      (list '(format "%d년 %s" year (calendar-month-name month))))
+
 
 (provide 'lunar-ko)
 ;;; lunar-ko.el ends here

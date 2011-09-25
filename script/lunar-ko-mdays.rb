@@ -41,6 +41,68 @@ Usage: #{program_name} [options]
 EOF
 end
 
+sexagesimal_names = {
+  "갑자" => 0,
+  "을축" => 1,
+  "병인" => 2,
+  "정묘" => 3,
+  "무진" => 4,
+  "기사" => 5,
+  "경오" => 6,
+  "신미" => 7,
+  "임신" => 8,
+  "계유" => 9,
+  "갑술" => 10,
+  "을해" => 11,
+  "병자" => 12,
+  "정축" => 13,
+  "무인" => 14,
+  "기묘" => 15,
+  "경진" => 16,
+  "신사" => 17,
+  "임오" => 18,
+  "계미" => 19,
+  "갑신" => 20,
+  "을유" => 21,
+  "병술" => 22,
+  "정해" => 23,
+  "무자" => 24,
+  "기축" => 25,
+  "경인" => 26,
+  "신묘" => 27,
+  "임진" => 28,
+  "계사" => 29,
+  "갑오" => 30,
+  "을미" => 31,
+  "병신" => 32,
+  "정유" => 33,
+  "무술" => 34,
+  "기해" => 35,
+  "경자" => 36,
+  "신축" => 37,
+  "임인" => 38,
+  "계묘" => 39,
+  "갑진" => 40,
+  "을사" => 41,
+  "병오" => 42,
+  "정미" => 43,
+  "무신" => 44,
+  "기유" => 45,
+  "경술" => 46,
+  "신해" => 47,
+  "임자" => 48,
+  "계축" => 49,
+  "갑인" => 50,
+  "을묘" => 51,
+  "병진" => 52,
+  "정사" => 53,
+  "무오" => 54,
+  "기미" => 55,
+  "경신" => 56,
+  "신유" => 57,
+  "임술" => 58,
+  "계해" => 59 }
+
 def parse_range(range_spec, min, max)
   toks = range_spec.split("-", 2)
 
@@ -138,6 +200,7 @@ $options[:range].each do |year|
   mdays = 0
   ydays = 0
   leap_month = nil
+  kanji_day = nil
 
   print "    #{year} "
 
@@ -148,6 +211,11 @@ $options[:range].each do |year|
 
     if prev_ym != ym
       #print "#{prev_ym[0..3]}-#{prev_ym[4..5]}-#{prev_ym[6]} #{mdays}\n" if prev_ym != ""
+      if not kanji_day
+        m = / ([^ ]*)\([^)]*\)일/.match(text)
+        kanji_day = sexagesimal_names[m[1]]
+        #print "KANJI(#{kanji_day}) "
+      end
       strio << " #{mdays}" if prev_ym != ""
 
       leap_month = ym[4..5].to_i if ym[6] != "0"
@@ -167,7 +235,7 @@ $options[:range].each do |year|
   strio << " #{mdays}"
 
   printf "(%3s", if leap_month then leap_month else "nil" end
-  print " . [#{strio.string.strip}])\n"
+  print " #{kanji_day} . [#{strio.string.strip}])\n"
 
 end
 

@@ -121,10 +121,10 @@ $log.debug { "PRETEND: #{if $options[:pretend] then true else nil end}" }
 $log.debug { "DATABASE: #{$options[:database]}" }
 
 
-print <<EOF
-(defconst korean-lunar-cache
-  [
-EOF
+#print <<EOF
+#(defconst korean-lunar-cache
+#  [
+#EOF
 
 sql = <<SQL
 SELECT * FROM korean_lunar WHERE lunar_alt LIKE '%01' AND \
@@ -133,13 +133,55 @@ lunar_alt <= '#{$options[:range].last}13000';
 SQL
 
 #print sql
+DATE_START = Date.parse('1582-10-04')
+
 $database.execute(sql) do | id, sol, sol_alt, lun, lun_alt, leap, text |
-  print "#{' ' * 4}(#{Date.parse(sol).ajd.to_f} . #{lun_alt})  ; #{sol} #{text}\n"
+  #print ";; sol: #{sol}, sol.ajd: #{Date.parse(sol).ajd.to_f}\n"
+
+  sol_date = /([0-9]*)-([0-9]*)-([0-9]*)/.match(sol)
+  sol_year, sol_month, sol_day = sol_date[1], sol_date[2], sol_date[3]
+
+  print "#{sol_date} #{lun_alt} #{text}\n"
+
+  julian = begin
+             date = Date.parse(sol)
+             ajd = date.ajd.to_f
+
+             (ajd = ajd - 10) if date <= DATE_START
+             ajd.to_f
+           rescue ArgumentError => e
+             m = /1582-10-([0-1][0-9])/.match(sol)
+             if m
+               # Emacs and Ruby implementation of Julian date number is
+               # different if the date is prior to 1582-10-15, the first
+               # day of the Gregorian calendar.
+               #
+               # Ruby date implementation does not support for gregorian date
+               # between 1582-10-05 ~ 1582-10-14. 
+
+               # DATE       Emacs     Ruby
+               # ---------- --------- ---------
+               # 1582-10-04 2299149.5 2299159.5
+               # 1582-10-05 2299150.5 N/A
+               # ...        ...       N/A
+               # 1582-10-14 2299159.5 N/A
+               # 1582-10-15 2299160.5 2299160.5
+               day = m[1].to_i
+
+               ajd = DATE_START.ajd.to_f - 10 # 2299159.5 - 10 = 2299149.5
+               ajd = ajd + day - 4
+               ajd.to_f
+             else
+               raise
+             end
+           end
+
+  #print "#{' ' * 4}(#{julian} . #{lun_alt})  ; #{sol} #{text}\n"
 end
 
-print <<EOF
-]
-  "Solar to Korean lunar cache")
-
-(provide 'lunar-ko-cache)
-EOF
+#print <<EOF
+#]
+#  "Solar to Korean lunar cache")
+#
+#(provide 'lunar-ko-cache)
+#EOF

@@ -407,9 +407,39 @@ YEAR1 is inclusive, and YEAR2 is exclusive."
           (message "음력: %s, %s" datestr kanji))
       datestr)))
 
+(defun cal-korean-goto-date (ldate &optional noecho)
+  "Move cursor to Korean lunar date DATE.
+Echo Korean lunar date unless NOECHO is non-nil."
+  (interactive
+   (let* ((now (lunar-ko-lunar-date (calendar-current-date)))
+          (year (calendar-read
+                 "Year in Korean lunar date: "
+                 (lambda (x) (and (> x 1390) (<= x 2050)))
+                 (number-to-string (lunar-ko-year now))))
+          (month (calendar-read
+                  "Month in Korean lunar date: "
+                  (lambda (x) (and (> x 0) (<= x 12)))
+                  (number-to-string (lunar-ko-month now))))
+          (leap? (calendar-read
+                 "Is it leap month? [y/N] "
+                 (lambda (x) (or (eq x 'y) (eq x 'Y)
+                                 (eq x 'n) (eq x 'N)))
+                 "N"))
+          (day (calendar-read
+                "Day in korean lunar date: "
+                (lambda (x) (and (> x 0) (<= x 30)))
+                (number-to-string (lunar-ko-day now))))
+          (leap (if (or (eq leap? 'y) (eq leap? 'Y))
+                    t
+                  nil)))
+     (list (list month day year leap))))
+  (calendar-goto-date (lunar-ko-solar-date ldate))
+  (or noecho (cal-korean-lunar-print-date)))
+
 (eval-after-load "calendar"
   '(progn 
-     (define-key calendar-mode-map "pK" 'cal-korean-lunar-print-date)))
+     (define-key calendar-mode-map "pK" 'cal-korean-lunar-print-date)
+     (define-key calendar-mode-map "gK" 'cal-korean-goto-date)))
 
 ;; These two variables governs `calenday-day-name' to return the
 ;; day name of the week.

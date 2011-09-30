@@ -1,0 +1,55 @@
+-*-diary-*-
+%%(diary-date 3 3 t) 납세자의 날
+%%(diary-date 3 15 t) 3.15 의거 기념일
+%%(diary-float 3 3 3) 상공의 날
+%%(diary-float 4 6 1) 향토예비군의 날
+%%(diary-date 4 5 t) 식목일
+%%(diary-date 4 7 t) 보건의 날
+%%(diary-date 4 13 t) 대한민국 임시정부 수립 기념일
+%%(diary-date 4 19 t) 4.19 혁명 기념일
+%%(diary-date 4 20 t) 장애인의 날
+%%(diary-date 4 21 t) 과학의 날
+%%(diary-date 4 22 t) 정보통신의 날
+%%(diary-date 4 25 t) 법의 날
+%%(diary-date 4 28 t) 충무공 탄신일
+%%(diary-date 5 1 t) 근로자의 날
+%%(diary-date 5 5 t) 어린이 날
+%%(diary-date 5 8 t) 어버이날
+%%(diary-date 5 11 t) 입양의 날
+%%(diary-date 5 15 t) 스승의 날
+%%(diary-date 5 18 t) 5.18 민주화운동 기념일
+%%(diary-date 5 19 t) 발명의 날
+%%(diary-date 5 21 t) 부부의 날
+%%(diary-float 5 1 3) 성년의 날
+%%(diary-date 5 25 t) 방재의 날
+%%(diary-date 5 31 t) 바다의 날
+%%(diary-date 6 1 t) 의병의 날
+%%(diary-date 6 5 t) 환경의 날
+%%(diary-date 6 6 t) 현충일
+%%(diary-date 6 10 t) 6.10 민주항쟁기념일
+%%(diary-date 6 25 t) 6.25 사변일
+%%(diary-date 7 17 t) 제헌절
+%%(diary-date 8 15 t) 광복절
+;; %%(diary-date 9 5 t) 목초의 날 discarded
+%%(diary-date 9 7 t) 사회복지의 날
+%%(diary-date 9 18 t) 철도의 날
+%%(diary-date 9 12 t) 치매극복의 날
+%%(diary-date 10 1 t) 국군의 날
+%%(diary-date 10 2 t) 노인의 날
+%%(diary-date 10 5 t) 세계한인의 날
+%%(diary-date 10 8 t) 재향군인의 날
+%%(diary-date 10 9 t) 한글날
+%%(diary-date 10 10 t) 임산부의 날
+%%(diary-date 10 15 t) 체육의 날
+%%(diary-date 10 21 t) 경찰의 날
+%%(diary-float 10 2 -1) 저축의 날
+%%(diary-date 10 24 t) 국제연합일
+%%(diary-date 10 28 t) 교정의 날
+%%(diary-date 11 3 t) 학생독립운동 기념일
+%%(diary-date 11 9 t) 소방의 날
+%%(diary-date 11 11 t) 농업인의 날
+%%(diary-date 11 17 t) 순국선열의 날
+%%(diary-date 11 30 t) 무역의 날
+%%(diary-date 12 3 t) 소비자의 날
+;; %%(diary-date 12 5 t) 국민교육헌장 선포기념일 discarded in 2003
+%%(diary-date 12 10 t) 세계인권선언기념일)

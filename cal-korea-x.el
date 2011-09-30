@@ -1,4 +1,4 @@
-;;; lunar-ko.el --- Utilities for Korean lunar calendar
+;;; cal-korea-x.el --- Utilities for Korean lunar calendar
 
 ;; Copyright (C) 2011  Seong-Kook Shin
 
@@ -189,25 +189,51 @@ is a Korean lunar day number if TYPE is :lunar."
 
 
 
+;;
+;; LDATESPEC is the internal Korean lunar date representation in number form.
+;; For example, the Korean lunar date, "April(leap) 8th 1947" is represented
+;; as 194704108.
+;;
+;; 194704108
+;; ^^^^          lunar year
+;;     ^^        lunar month
+;;       ^       1 if the lunar month is leap month, otherwise 0.
+;;        ^^     lunar day
+;;
+
+(defun lunar-ko-new-ldatespec (month day year &optional leap)
+  (assert (> year 1390) t "out of range: %S")
+  (assert (<= year 2050) t "out of range: %S")
+  (assert (> month 0) t "out of range: %S")
+  (assert (<= month 12) t "out of range: %S")
+  (assert (> day 0) t "out of range: %S")
+  (assert (<= day 30) t "out of range: %S")
+  (+ (* year 100000)
+     (* month 1000)
+     (* (if leap 1 0) 100)
+     day))
 
 (defun lunar-ko-year (ldatespec)
-  (caddr ldatespec))
+  (/ ldatespec 100000))
+
 (defun lunar-ko-month (ldatespec)
-  (car ldatespec))
+  (/ (mod ldatespec 100000) 1000))
+
 (defun lunar-ko-day (ldatespec)
-  (cadr ldatespec))
+  (mod ldatespec 100))
 
-
-;;; TODO: recheck any code that uses `lunar-ko-leap' is correct!
-(defun lunar-ko-leap (ldatespec)
-  (if (and (= (length ldatespec) 4)
-           (nth 3 ldatespec))
-      (lunar-ko-month ldatespec)
-    nil))
+(defun lunar-ko-leapmonth (ldatespec)
+  "Return the leap month(1-12) if any"
+  (if (lunar-ko-leap?)
+      (lunar-ko-month ldatespec)))
 
 (defun lunar-ko-leap? (ldatespec)
-  (and (= (length ldatespec) 4)
-       (nth 3 ldatespec)))
+  "Return t if the year has leap month"
+  (if (= (/ (mod ldatespec 1000) 100) 1)
+      t))
+  
+;;; TODO: recheck any code that uses `lunar-ko-leap' is correct!
+
 
 
 (defun lunar-ko-month-index (ldatespec &optional cache)
@@ -244,8 +270,8 @@ representation, IMPL.
 
 The optional CACHE specifies the pre-acquired hash entry if any."
   (let ((entry (or cache
-                   (gethash (lunar-ko-year impl) korean-lunar-months))))
-    (aref (cddr entry) (lunar-ko-month impl))))
+                   (gethash (nth 2 impl) korean-lunar-months))))
+    (aref (cddr entry) (nth 0 impl))))
 
     
 (defun lunar-ko-date-to-impl (ldatespec &optional cache)
@@ -262,35 +288,35 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
 
 The internal form is like (MONTH-INDEX DAY YEAR), where MONTH-INDEX
 is the index value of the vector in `korean-lunar-months' (0-12)."
-  (let* ((midx (lunar-ko-month impl))
-         (day (lunar-ko-day impl))
-         (year (lunar-ko-year impl))
+  (let* ((midx (nth 0 impl))
+         (day (nth 1 impl))
+         (year (nth 2 impl))
          (entry (or cache
                     (gethash year korean-lunar-months)))
          (leap-month (car entry)))
-    (cond ((null leap-month) (list (1+ midx) day year))
-          ((< midx leap-month) (list (1+ midx) day year))
-          ((= midx leap-month) (list midx day year t))
-          ((> midx leap-month) (list midx day year)))))
+    (cond ((null leap-month) (lunar-ko-new-ldatespec (1+ midx) day year))
+          ((< midx leap-month) (lunar-ko-new-ldatespec (1+ midx) day year))
+          ((= midx leap-month) (lunar-ko-new-ldatespec midx day year t))
+          ((> midx leap-month) (lunar-ko-new-ldatespec midx day year)))))
 
 (defun lunar-ko-advance (ldatespec days)
   "Return the lunar date, advanced DAYS days from LDATESPEC."
-  (let ((date (lunar-ko-date-to-impl ldatespec)))
+  (let* ((date (lunar-ko-date-to-impl ldatespec)))
     (setq days (round days))
     (while (> days 0)
-      (let* ((year (lunar-ko-year date))
+      (let* ((year (nth 2 date))
              (entry (gethash year korean-lunar-months))
              (vec (cddr entry))
-             (midx (lunar-ko-month date))
-             (remain-days (- (aref vec midx) (lunar-ko-day date))))
+             (midx (nth 0 date))
+             (remain-days (- (aref vec midx) (nth 1 date))))
         (let ((mdays (lunar-ko-impl-days date))
-              (day (+ (lunar-ko-day date) days)))
+              (day (+ (nth 1 date) days)))
           (if (<= day mdays)
               ;; If there's no carry to MONTH
               (setq days 0
                     date (list midx day year)) ; FIN
             ;; If there's carry from DAY to MONTH
-            (setq days (- days (- mdays (lunar-ko-day date)))
+            (setq days (- days (- mdays (nth 1 date)))
                   day 0
                   midx (1+ midx))
             (if (< midx (length vec))
@@ -315,26 +341,11 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
                                   (lunar-ko-leap ldatespec))))))
 
 
-
-(defun lunar-ko-date-to-kld (ldatespec)
-  (+ (* (lunar-ko-year ldatespec) 100000)
-     (* (lunar-ko-month ldatespec) 1000)
-     (if (lunar-ko-leap? ldatespec) 100 0)
-     (lunar-ko-day ldatespec)))
-
-(defun lunar-ko-kld-to-date (kld)
-  (list (/ (mod kld 100000) 1000)
-        (mod kld 100)
-        (/ kld 100000)
-        (if (= (/ (mod kld 1000) 100) 1)
-            t)))
-
-
 (defun lunar-ko-lunar-date (solar-date)
   "Convert the solar date into the Korean lunar date."
   (let* ((ajd (gregorian-to-julian solar-date))
          (pair (lunar-ko-find-nearest ajd :solar)))
-    (lunar-ko-advance (lunar-ko-kld-to-date (cdr pair))
+    (lunar-ko-advance (cdr pair)
                       (round (- ajd (car pair))))))
 
 
@@ -343,11 +354,10 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
 
 Due to the limitation of `julian-to-gregorian', LDATESPEC should
 be no less than 1582-11-01."
-  (let ((base (lunar-ko-find-nearest (lunar-ko-date-to-kld ldatespec) :lunar)))
+  (let ((base (lunar-ko-find-nearest ldatespec :lunar)))
     (julian-to-gregorian (+ (car base)
                             (- (lunar-ko-days-to ldatespec)
-                               (lunar-ko-days-to 
-                                (lunar-ko-kld-to-date (cdr base))))))))
+                               (lunar-ko-days-to (cdr base)))))))
 
 
 (defun lunar-ko-days-to (ldatespec &optional cache)
@@ -591,5 +601,5 @@ line."
 
 
 
-(provide 'lunar-ko)
-;;; lunar-ko.el ends here
+(provide 'cal-korea-x)
+;;; cal-korea-x.el ends here

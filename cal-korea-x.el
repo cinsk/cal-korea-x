@@ -57,8 +57,46 @@
 ;; YEAR  := 1391-2050
 ;; LEAP  := t or nil
 
+(require 'calendar)
+
+(eval-when-compile
+  (require 'cl)
+  (require 'holidays)
+)
+
 (require 'lunar-ko-mdays)
 (require 'lunar-ko-cache)
+
+(defvar displayed-year)
+(defvar displayed-month)
+
+;; a week begins on Monday, not Sunday.
+(setq calendar-week-start-day 1)
+  
+;;(defvar calendar-date-display-form)
+;;(defvar calendar-month-name-array)
+;;(defvar calendar-mode-line-format)
+
+;;(defconst korean-lunar-months)
+;;(defconst korean-lunar-cache)
+
+(defconst cal-korea-x-korean-holidays
+  '((holiday-fixed 1 1 "신정")
+    (holiday-lunar-ko 1 nil 1 "설날" -1)
+    (holiday-lunar-ko 1 nil 1 "설날")
+    (holiday-lunar-ko 1 nil 1 "설날" 1)
+    (holiday-fixed 3 1 "3.1절")
+    (holiday-lunar-ko 4 nil 8 "석가탄신일")
+    (holiday-fixed 5 5 "어린이날")
+    (holiday-fixed 6 6 "현충일")
+    (holiday-fixed 8 15 "광복절")
+    (holiday-fixed 10 3 "개천절")
+    (holiday-lunar-ko 8 nil 15 "추석" -1)
+    (holiday-lunar-ko 8 nil 15 "추석")
+    (holiday-lunar-ko 8 nil 15 "추석" 1)
+    (holiday-fixed 12 25 "성탄절"))
+  "Pre-define Korean public holidays.")
+
 
 (defconst korean-celestial-stem [("갑" . "甲")
                                  ("을" . "乙")
@@ -86,23 +124,6 @@
                                      ("해" . "亥")]
   "Korean terrestrial branch (identical to that of Chinese)")
 
-
-(defconst cal-korea-x-korean-holidays
-  '((holiday-fixed 1 1 "신정")
-    (holiday-lunar-ko 1 nil 1 "설날" -1)
-    (holiday-lunar-ko 1 nil 1 "설날")
-    (holiday-lunar-ko 1 nil 1 "설날" 1)
-    (holiday-fixed 3 1 "3.1절")
-    (holiday-lunar-ko 4 nil 8 "석가탄신일")
-    (holiday-fixed 5 5 "어린이날")
-    (holiday-fixed 6 6 "현충일")
-    (holiday-fixed 8 15 "광복절")
-    (holiday-fixed 10 3 "개천절")
-    (holiday-lunar-ko 8 nil 15 "추석" -1)
-    (holiday-lunar-ko 8 nil 15 "추석")
-    (holiday-lunar-ko 8 nil 15 "추석" 1)
-    (holiday-fixed 12 25 "성탄절"))
-  "Pre-define Korean public holidays.")
 
 
 
@@ -243,7 +264,7 @@ is a Korean lunar day number if TYPE is :lunar."
 
 (defun lunar-ko-leapmonth (ldatespec)
   "Return the leap month(1-12) if any"
-  (if (lunar-ko-leap?)
+  (if (lunar-ko-leap? ldatespec)
       (lunar-ko-month ldatespec)))
 
 (defun lunar-ko-leap? (ldatespec)
@@ -347,17 +368,16 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
 
 
 
-(defun lunar-ko-valid? (ldatespec)
+(defun lunar-ko-valid? (ldatespec &optional cache)
   "Return t if the lunar date LDATESPEC is actually existed."
-  (let* ((val (gethash (lunar-ko-year ldatespec) korean-lunar-months))
-         (lmon (car val)))
+  (let* ((entry (or cache
+                    (gethash (lunar-ko-year ldatespec) korean-lunar-months)))
+         (lmon (car entry)))
     (and (if (lunar-ko-leap? ldatespec)
-             (equal (lunar-ko-leap ldatespec) lmon)
+             (equal (lunar-ko-leapmonth ldatespec) lmon)
            t)
          (<= (lunar-ko-day ldatespec)
-             (lunar-ko-month-days (lunar-ko-year ldatespec)
-                                  (lunar-ko-month ldatespec)
-                                  (lunar-ko-leap ldatespec))))))
+             (lunar-ko-month-days ldatespec)))))
 
 
 (defun lunar-ko-lunar-date (solar-date)
@@ -412,13 +432,20 @@ The date of LDATESPEC is counted."
   "Count days from YEAR1 and YEAR2.
 
 YEAR1 is inclusive, and YEAR2 is exclusive."
-  (let ((start (min year1 year2))
-        (end (max year1 year2))
-        (days 0))
-    (dotimes (i (- end start) days)
-      (setq days (+ days
-                    (reduce #'+ (cddr (gethash (+ i start)
-                                               korean-lunar-months))))))))
+  (flet ((reduce-array (function array)
+                       (let ((len (length array))
+                             (sum (aref array 0)))
+                         (dotimes (i (- len 1) sum)
+                           (setq sum (funcall function 
+                                              sum (aref array (1+ i))))))))
+    (let ((start (min year1 year2))
+          (end (max year1 year2))
+          (days 0))
+      (dotimes (i (- end start) days)
+        (setq days (+ days
+                      (reduce-array #'+ 
+                                    (cddr (gethash (+ i start)
+                                                   korean-lunar-months)))))))))
 
 (defun cal-korean-lunar-print-date (&optional date)
   "Show the Chinese date equivalents of date."
@@ -497,10 +524,10 @@ Echo Korean lunar date unless NOECHO is non-nil."
   (concat (aref cal-korea-short-day-names (calendar-day-of-week date))
           "요일"))
 
-(defun cal-korea-month-name (month &optional abbrev)
-  (if abbrev
-      (format "%d월" month)
-    (aref cal-korea-month-names (1- month))))
+;; (defun cal-korea-month-name (month &optional abbrev)
+;;   (if abbrev
+;;       (format "%d월" month)
+;;     (aref cal-korea-month-names (1- month))))
 
 (defun cal-korea-x-calendar-display-form (date)
   (if (equal date '(0 0 0))
@@ -553,7 +580,10 @@ Echo Korean lunar date unless NOECHO is non-nil."
   "The header line of the calendar.
 This is a list of items that evaluate to strings.  During
 evaluation, the variable `month' and `year' are available as the
-month and year of the calendar.")
+month and year of the calendar."
+  :risky t
+  :type 'sexp
+  :group 'calendar)
 
 (defun calendar-generate-month (month year indent)
   "Produce a calendar for MONTH, YEAR on the Gregorian calendar.

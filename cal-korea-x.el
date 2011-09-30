@@ -19,7 +19,6 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-
 ;; 
 
 ;;; Code:
@@ -86,6 +85,26 @@
                                      ("술" . "戌")
                                      ("해" . "亥")]
   "Korean terrestrial branch (identical to that of Chinese)")
+
+
+(defconst cal-korea-x-korean-holidays
+  '((holiday-fixed 1 1 "신정")
+    (holiday-lunar-ko 1 nil 1 "설날" -1)
+    (holiday-lunar-ko 1 nil 1 "설날")
+    (holiday-lunar-ko 1 nil 1 "설날" 1)
+    (holiday-fixed 3 1 "3.1절")
+    (holiday-lunar-ko 4 nil 8 "석가탄신일")
+    (holiday-fixed 5 5 "어린이날")
+    (holiday-fixed 6 6 "현충일")
+    (holiday-fixed 8 15 "광복절")
+    (holiday-fixed 10 3 "개천절")
+    (holiday-lunar-ko 8 nil 15 "추석" -1)
+    (holiday-lunar-ko 8 nil 15 "추석")
+    (holiday-lunar-ko 8 nil 15 "추석" 1)
+    (holiday-fixed 12 25 "성탄절"))
+  "Pre-define Korean public holidays.")
+
+
 
 (defun lunar-ko-sexagesimal-index (index)
   "Get the Korean sexagesimal name from INDEX.
@@ -599,7 +618,38 @@ line."
 (setq calendar-month-header-format
       (list '(format "%d년 %s" year (calendar-month-name month))))
 
-
+
+(defun holiday-lunar-ko (lunar-month leap-month lunar-day string 
+                                     &optional dist)
+  "Like `holiday-fixed', but with Korean lunar date in LUNAR-MONTH, LUNAR-DAY.
+
+LEAP-MONTH is t if LUNAR-MONTH is the leap month.  DIST denotes that
+the day distance(offset) from the lunar date.  For example:
+
+DIST = 0 (or nil), the lunar date given,
+DIST = 1, the next day of the lunar date,
+DIST = -1, the previous day of the lunar date.
+
+DIST is useful to make a holiday period, like Korean New Year's
+day (three holidays).  The actual holidays are from the previous
+day of New Year's day to the next day of New Year's day.  Thus,
+
+  (holiday-lunar-ko 1 nil 1 \"New Year's Day\" -1)
+  (holiday-lunar-ko 1 nil 1 \"New Year's Day\")
+  (holiday-lunar-ko 1 nil 1 \"New Year's Day\" +1)
+
+will do."
+  (let* ((pivot (lunar-ko-solar-date
+                 (lunar-ko-new-ldatespec lunar-month lunar-day
+                                         displayed-year leap-month)))
+         (date (julian-to-gregorian (+ (gregorian-to-julian pivot) 
+                                       (or dist 0)))))
+    (holiday-fixed (nth 0 date) (nth 1 date) 
+                   (format "%s%s" string 
+                           (if (= (or dist 0) 0) 
+                               ""
+                             (format " (%+d)" dist))))))
+
 
 (provide 'cal-korea-x)
 ;;; cal-korea-x.el ends here

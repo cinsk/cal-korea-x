@@ -19,7 +19,7 @@
 ;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; 
+;;
 
 ;;; Code:
 
@@ -28,7 +28,7 @@
 ;; system of either Chinese lunar calendar or Korean lunar calendar.
 ;; If you find any mistake in my code/documentation, please let me
 ;; know.
-;; 
+;;
 
 ;;
 ;; AFAIK, the Korean lunar calendar is almost the same as Chinese
@@ -131,12 +131,12 @@ The returned value has the form '(KOREAN-NAME . CHINESE-NAME)'"
 
 (defun lunar-ko-sexagesimal-day (ldatespec &optional cache)
   (let* ((entry (or cache
-                    (gethash (lunar-ko-year ldatespec) 
+                    (gethash (lunar-ko-year ldatespec)
                              korean-lunar-months)))
          (base (cadr entry)))
     (lunar-ko-sexagesimal-index
      (mod (+ (mod (lunar-ko-days-to ldatespec entry) 60) base) 60))))
-              
+
 
 (defun lunar-ko-sexagesimal-name (ldatespec &optional chinese cache)
   (let ((year (lunar-ko-sexagesimal-year ldatespec))
@@ -157,7 +157,7 @@ The returned value has the form '(KOREAN-NAME . CHINESE-NAME)'"
 Julian day number.  See also `calendar-astro-date-string'."
   (calendar-astro-from-absolute
    (calendar-absolute-from-gregorian date)))
-  
+
 (defun julian-to-gregorian (date)
   "Convert Julian day number to the gregorian date in the form
 of (MONTH DAY YEAR).  See also `calendar-astro-goto-day-number'."
@@ -167,7 +167,7 @@ of (MONTH DAY YEAR).  See also `calendar-astro-goto-day-number'."
   ;; julian date in `korean-lunar-cache' if DATE is prior to
   ;; 1582-10-*.
   ;;(assert (> date 2299177) "out of range: %S")
-  (calendar-gregorian-from-absolute 
+  (calendar-gregorian-from-absolute
    (floor (calendar-astro-to-absolute date))))
 
 
@@ -186,7 +186,7 @@ is a Korean lunar day number if TYPE is :lunar."
                                (car rhs-pair) (cdr rhs-pair))))
                   (- lhs rhs))))
       (let ((min_pair (aref korean-lunar-cache 0))
-            (max_pair (aref korean-lunar-cache 
+            (max_pair (aref korean-lunar-cache
                             (1- (length korean-lunar-cache)))))
         (if (or (< (cmp type value min_pair) 0)
                 (> (cmp type value max_pair) 0))
@@ -250,7 +250,7 @@ is a Korean lunar day number if TYPE is :lunar."
   "Return t if the year has leap month"
   (if (= (/ (mod ldatespec 1000) 100) 1)
       t))
-  
+
 ;;; TODO: recheck any code that uses `lunar-ko-leap' is correct!
 
 
@@ -260,7 +260,7 @@ is a Korean lunar day number if TYPE is :lunar."
 in LDATESPEC.
 
 The optional CACHE specifies the pre-acquired hash entry if any."
-  (let* ((entry (or cache 
+  (let* ((entry (or cache
                     (gethash (lunar-ko-year ldatespec) korean-lunar-months)))
          (lmon (car entry))
          (vec (cddr entry))
@@ -277,7 +277,7 @@ The optional CACHE specifies the pre-acquired hash entry if any."
 
 The optional CACHE specifies the pre-acquired hash entry if any."
   (let ((entry (or cache
-                   (gethash (lunar-ko-year ldatespec) 
+                   (gethash (lunar-ko-year ldatespec)
                             korean-lunar-months))))
     (aref (cddr entry) (lunar-ko-month-index ldatespec entry))))
 
@@ -292,7 +292,7 @@ The optional CACHE specifies the pre-acquired hash entry if any."
                    (gethash (nth 2 impl) korean-lunar-months))))
     (aref (cddr entry) (nth 0 impl))))
 
-    
+
 (defun lunar-ko-date-to-impl (ldatespec &optional cache)
   "Convert LDATESPEC into internal lunar format.
 
@@ -384,7 +384,7 @@ be no less than 1582-11-01."
 
 The date of LDATESPEC is not counted."
   (let* ((entry (or cache
-                    (gethash (lunar-ko-year ldatespec) 
+                    (gethash (lunar-ko-year ldatespec)
                              korean-lunar-months)))
          (vec (cddr entry))
          (idx (lunar-ko-month-index ldatespec entry))
@@ -402,7 +402,7 @@ The date of LDATESPEC is counted."
          (vec (cddr entry))
          (idx (lunar-ko-month-index ldatespec entry))
          (days 0))
-    (+ (- (aref vec idx) (lunar-ko-day ldatespec)) 
+    (+ (- (aref vec idx) (lunar-ko-day ldatespec))
        1
        (dotimes (i (- (length vec) idx 1) days)
          (setq days (+ days (aref vec (+ i idx 1))))))))
@@ -462,11 +462,12 @@ Echo Korean lunar date unless NOECHO is non-nil."
                     t
                   nil)))
      (list (list month day year leap))))
-  (calendar-goto-date (lunar-ko-solar-date ldate))
+  (calendar-goto-date (lunar-ko-solar-date (apply 'lunar-ko-new-ldatespec
+                                                  ldate)))
   (or noecho (cal-korean-lunar-print-date)))
 
 (eval-after-load "calendar"
-  '(progn 
+  '(progn
      (define-key calendar-mode-map "pK" 'cal-korean-lunar-print-date)
      (define-key calendar-mode-map "gK" 'cal-korean-goto-date)))
 
@@ -479,7 +480,7 @@ Echo Korean lunar date unless NOECHO is non-nil."
 ;; always have double width of the western glyph.
 (when nil
   (setq calendar-day-abbrev-array [ nil nil nil nil nil nil nil ]
-        calendar-day-name-array ["일요일" "월요일" "화요일" "수요일" 
+        calendar-day-name-array ["일요일" "월요일" "화요일" "수요일"
                                  "목요일" "금요일" "토요일"]))
 
 (defconst cal-korea-short-day-names
@@ -491,7 +492,7 @@ Echo Korean lunar date unless NOECHO is non-nil."
 
 (setq calendar-month-name-array
       ["1월" "2월" "3월" "4월" "5월" "6월" "7월" "8월" "9월" "10월" "11월" "12월"])
-      
+
 (defun cal-korea-day-name (date)
   "Korean day name in a week, like \"월요일\"."
   (concat (aref cal-korea-short-day-names (calendar-day-of-week date))
@@ -512,7 +513,7 @@ Echo Korean lunar date unless NOECHO is non-nil."
             (cal-korea-day-name date))))
 
 (setq calendar-date-display-form
-      '((cal-korea-x-calendar-display-form 
+      '((cal-korea-x-calendar-display-form
          (mapcar (lambda (el) (string-to-number el))
                    (list month day year)))))
 
@@ -542,7 +543,7 @@ Echo Korean lunar date unless NOECHO is non-nil."
 ;; there's no way to display custom calendar header.
 ;;
 ;; This `calendar-generate-month' is directly copied from lisp/calender.el
-;; of "GNU Emacs 23.3.1 (i686-pc-linux-gnu, GTK+ Version 2.22.1)", 
+;; of "GNU Emacs 23.3.1 (i686-pc-linux-gnu, GTK+ Version 2.22.1)",
 ;; and modified to use custom calendar header.
 ;;
 ;; See also http://debbugs.gnu.org/cgi/bugreport.cgi?bug=9510
@@ -619,7 +620,7 @@ line."
       (list '(format "%d년 %s" year (calendar-month-name month))))
 
 
-(defun holiday-lunar-ko (lunar-month leap-month lunar-day string 
+(defun holiday-lunar-ko (lunar-month leap-month lunar-day string
                                      &optional dist)
   "Like `holiday-fixed', but with Korean lunar date in LUNAR-MONTH, LUNAR-DAY.
 
@@ -642,11 +643,11 @@ will do."
   (let* ((pivot (lunar-ko-solar-date
                  (lunar-ko-new-ldatespec lunar-month lunar-day
                                          displayed-year leap-month)))
-         (date (julian-to-gregorian (+ (gregorian-to-julian pivot) 
+         (date (julian-to-gregorian (+ (gregorian-to-julian pivot)
                                        (or dist 0)))))
-    (holiday-fixed (nth 0 date) (nth 1 date) 
-                   (format "%s%s" string 
-                           (if (= (or dist 0) 0) 
+    (holiday-fixed (nth 0 date) (nth 1 date)
+                   (format "%s%s" string
+                           (if (= (or dist 0) 0)
                                ""
                              (format " (%+d)" dist))))))
 

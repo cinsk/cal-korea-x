@@ -98,6 +98,7 @@
     (holiday-fixed 6 6 "현충일")
     (holiday-fixed 8 15 "광복절")
     (holiday-fixed 10 3 "개천절")
+    (holiday-fixed 10 9 "한글날")
     (holiday-lunar-ko 8 nil 15 "추석" -1)
     (holiday-lunar-ko 8 nil 15 "추석")
     (holiday-lunar-ko 8 nil 15 "추석" 1)

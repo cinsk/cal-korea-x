@@ -1,4 +1,4 @@
-;;; cal-korea-x.el --- Utilities for Korean lunar calendar
+;;; cal-korea-x.el --- Utilities for Korean lunar calendar -*- coding: utf-8 -*-
 
 ;; Copyright (C) 2011  Seong-Kook Shin
 
@@ -57,8 +57,51 @@
 ;; YEAR  := 1391-2050
 ;; LEAP  := t or nil
 
+;; in ~/diary file
+;; -----------------------------------------------------------------------------
+;; %%(diary-lunar-date 9 16 2013) TEST 음력 날짜
+
+;; %%(diary-lunar-anniversary 2 27) TEST 생일(%s)
+
+;; %%(diary-lunar-anniversary 9 27 t) TEST 윤달 생일(%s)
+
+;; %%(diary-solar-24term "소한") 소한(小寒)
+;; %%(diary-solar-24term "대한") 대한(大寒)
+;; %%(diary-solar-24term "입춘") 입춘(立春)
+;; %%(diary-solar-24term "우수") 우수(雨水)
+;; %%(diary-solar-24term "경칩") 경칩(驚蟄)
+;; %%(diary-solar-24term "춘분") 춘분(春分)
+;; %%(diary-solar-24term "청명") 청명(淸明)
+;; %%(diary-solar-24term "곡우") 곡우(谷雨)
+;; %%(diary-solar-24term "입하") 입하(立夏)
+;; %%(diary-solar-24term "소만") 소만(小滿)
+;; %%(diary-solar-24term "망종") 망종(芒種)
+;; %%(diary-solar-24term "하지") 하지(夏至)
+;; %%(diary-solar-24term "소서") 소서(小暑)
+;; %%(diary-solar-24term "대서") 대서(大暑)
+;; %%(diary-solar-24term "입추") 입추(立秋)
+;; %%(diary-solar-24term "처서") 처서(處暑)
+;; %%(diary-solar-24term "백로") 백로(白露)
+;; %%(diary-solar-24term "추분") 추분(秋分)
+;; %%(diary-solar-24term "한로") 한로(寒露)
+;; %%(diary-solar-24term "상강") 상강(霜降)
+;; %%(diary-solar-24term "입동") 입동(立冬)
+;; %%(diary-solar-24term "소설") 소설(小雪)
+;; %%(diary-solar-24term "대설") 대설(大雪)
+;; %%(diary-solar-24term "동지") 동지(冬至)
+;; -----------------------------------------------------------------------------
+
+(require 'cl)
+(require 'calendar)
+(require 'holidays)
+(require 'solar)
+(require 'cal-julian)
 (require 'lunar-ko-mdays)
 (require 'lunar-ko-cache)
+
+(defvar cal-korea-x-use-korean-month-name t)
+
+(defvar cal-korea-x-use-korean-week-name nil)
 
 (defconst korean-celestial-stem [("갑" . "甲")
                                  ("을" . "乙")
@@ -86,23 +129,27 @@
                                      ("해" . "亥")]
   "Korean terrestrial branch (identical to that of Chinese)")
 
+(defconst cal-korea-x-solar-term-name
+  ["소한" "대한" "입춘" "우수" "경칩" "춘분" "청명" "곡우" "입하" "소만" "망종" "하지"
+   "소서" "대서" "입추" "처서" "백로" "추분" "한로" "상강" "입동" "소설" "대설" "동지"]
+  "24 solar terms(in korean).")
 
 (defconst cal-korea-x-korean-holidays
-  '((holiday-fixed 1 1 "신정")
-    (holiday-lunar-ko 1 nil 1 "설날" -1)
-    (holiday-lunar-ko 1 nil 1 "설날")
-    (holiday-lunar-ko 1 nil 1 "설날" 1)
-    (holiday-fixed 3 1 "3.1절")
-    (holiday-lunar-ko 4 nil 8 "석가탄신일")
-    (holiday-fixed 5 5 "어린이날")
-    (holiday-fixed 6 6 "현충일")
-    (holiday-fixed 8 15 "광복절")
-    (holiday-fixed 10 3 "개천절")
-    (holiday-fixed 10 9 "한글날")
-    (holiday-lunar-ko 8 nil 15 "추석" -1)
-    (holiday-lunar-ko 8 nil 15 "추석")
-    (holiday-lunar-ko 8 nil 15 "추석" 1)
-    (holiday-fixed 12 25 "성탄절"))
+  '((holiday-fixed 1 1          "신정")
+    (holiday-lunar-ko 1 nil 1   "설날" -1)
+    (holiday-lunar-ko 1 nil 1   "설날")
+    (holiday-lunar-ko 1 nil 1   "설날" 1)
+    (holiday-fixed 3 1          "3.1절")
+    (holiday-lunar-ko 4 nil 8   "석가탄신일")
+    (holiday-fixed 5 5          "어린이날")
+    (holiday-fixed 6 6          "현충일")
+    (holiday-fixed 8 15         "광복절")
+    (holiday-fixed 10 3         "개천절")
+    (holiday-fixed 10 9         "한글날")
+    (holiday-lunar-ko 8 nil 15  "추석" -1)
+    (holiday-lunar-ko 8 nil 15  "추석")
+    (holiday-lunar-ko 8 nil 15  "추석" 1)
+    (holiday-fixed 12 25        "성탄절"))
   "Pre-define Korean public holidays.")
 
 
@@ -137,7 +184,6 @@ The returned value has the form '(KOREAN-NAME . CHINESE-NAME)'"
          (base (cadr entry)))
     (lunar-ko-sexagesimal-index
      (mod (+ (mod (lunar-ko-days-to ldatespec entry) 60) base) 60))))
-
 
 (defun lunar-ko-sexagesimal-name (ldatespec &optional chinese cache)
   (let ((year (lunar-ko-sexagesimal-year ldatespec))
@@ -244,7 +290,7 @@ is a Korean lunar day number if TYPE is :lunar."
 
 (defun lunar-ko-leapmonth (ldatespec)
   "Return the leap month(1-12) if any"
-  (if (lunar-ko-leap?)
+  (if (lunar-ko-leap? ldatespec)
       (lunar-ko-month ldatespec)))
 
 (defun lunar-ko-leap? (ldatespec)
@@ -353,12 +399,10 @@ is the index value of the vector in `korean-lunar-months' (0-12)."
   (let* ((val (gethash (lunar-ko-year ldatespec) korean-lunar-months))
          (lmon (car val)))
     (and (if (lunar-ko-leap? ldatespec)
-             (equal (lunar-ko-leap ldatespec) lmon)
+             (equal (lunar-ko-leap? ldatespec) lmon)
            t)
          (<= (lunar-ko-day ldatespec)
-             (lunar-ko-month-days (lunar-ko-year ldatespec)
-                                  (lunar-ko-month ldatespec)
-                                  (lunar-ko-leap ldatespec))))))
+             (lunar-ko-month-days ldatespec)))))
 
 
 (defun lunar-ko-lunar-date (solar-date)
@@ -472,27 +516,17 @@ Echo Korean lunar date unless NOECHO is non-nil."
      (define-key calendar-mode-map "pK" 'cal-korean-lunar-print-date)
      (define-key calendar-mode-map "gK" 'cal-korean-goto-date)))
 
-;; These two variables governs `calenday-day-name' to return the
-;; day name of the week.
-;;
-;; It turns out that modifying `calendar-day-name-array' and
-;; `calendar-day-abbrev-array' is not good idea.  If we do, the layout
-;; of calendar will be not aligned correctly, unless the Korean glyphs
-;; always have double width of the western glyph.
-(when nil
-  (setq calendar-day-abbrev-array [ nil nil nil nil nil nil nil ]
-        calendar-day-name-array ["일요일" "월요일" "화요일" "수요일"
-                                 "목요일" "금요일" "토요일"]))
+
+(when cal-korea-x-use-korean-month-name
+  (setq calendar-month-name-array ["1월" "2월" "3월" "4월" "5월" "6월" "7월" "8월" "9월" "10월" "11월" "12월"]))
+
+(when cal-korea-x-use-korean-week-name
+  (setq calendar-day-abbrev-array [ "일" "월" "화" "수" "목" "금" "토" ]
+        calendar-day-name-array ["일요일" "월요일" "화요일" "수요일" "목요일" "금요일" "토요일"]))
 
 (defconst cal-korea-short-day-names
   ["일" "월" "화" "수" "목" "금" "토"]
   "The abbreviated Korean week name")
-;;(defconst cal-korea-month-names
-;;  ["일월" "이월" "삼월" "사월" "오월" "유월" "칠월" "팔월" "구월" "시월" "십일월" "십이월"]
-;;  "The Korean month name")
-
-(setq calendar-month-name-array
-      ["1월" "2월" "3월" "4월" "5월" "6월" "7월" "8월" "9월" "10월" "11월" "12월"])
 
 (defun cal-korea-day-name (date)
   "Korean day name in a week, like \"월요일\"."
@@ -652,6 +686,142 @@ will do."
                                ""
                              (format " (%+d)" dist))))))
 
+;; =============================================================================
+;; for korean 24 terms
+
+(defun cal-korea-x-gregorian-from-astro (a)
+  (calendar-gregorian-from-absolute
+   (floor (calendar-astro-to-absolute a))))
+
+(defun cal-korea-x-astro-from-gregorian (g)
+  (calendar-astro-from-absolute
+   (calendar-absolute-from-gregorian g)))
+
+(defun cal-korea-x-next-solar-term (date)
+  "Return next solar term's data after DATE.
+Each solar term is separated by 15 longtitude degrees or so, plus an
+extra day appended."
+  (cal-korea-x-gregorian-from-astro
+    (solar-date-next-longitude
+     (cal-korea-x-astro-from-gregorian
+      (calendar-gregorian-from-absolute
+       (1+ (calendar-absolute-from-gregorian date))))
+     15)))
+
+(defun cal-korea-x-solar-term-alist-new (year)
+  "Return a solar-term alist for YEAR."
+  (loop for i from 0 upto 23
+
+        for date = (cal-korea-x-next-solar-term `(1 1 ,year))
+        then (setq date (cal-korea-x-next-solar-term date))
+
+        with solar-term-alist = '()
+
+        collect (cons date (aref cal-korea-x-solar-term-name i))
+        into solar-term-alist
+
+        finally return solar-term-alist))
+
+;; cached solar terms in a year
+(defvar cal-korea-x-solar-term-alist nil) ; e.g., '(((9 23 2013) "추분") ...)
+(defvar cal-korea-x-solar-term-year nil)
+
+(defun cal-korea-x-sync-solar-term (year)
+  "Sync `cal-korea-x-solar-term-alist' and `cal-korea-x-solar-term-year' to YEAR."
+  (unless (and cal-korea-x-solar-term-year
+               (= cal-korea-x-solar-term-year year))
+      (setq cal-korea-x-solar-term-alist
+            (cal-korea-x-solar-term-alist-new year))
+      (setq cal-korea-x-solar-term-year
+            (extract-calendar-year
+             (caar cal-korea-x-solar-term-alist)))))
+
+(defun holiday-solar-term-ko (solar-term str)
+  "A holiday(STR) on SOLAR-TERM day.
+See `cal-korea-x-solar-term-name' for a list of solar term names ."
+  (cal-korea-x-sync-solar-term displayed-year)
+  (let ((l cal-korea-x-solar-term-alist)
+        date)
+    (dolist (i l)
+      (when (string= (cdr i) solar-term)
+        (setq l '()
+              date (car i))))
+    (holiday-fixed (car date) (cadr date) str)))
+
+;; =============================================================================
+;; for diary lunar item
+
+(defvar diary-korean-date-forms
+  '((month "[-/]" day "[^-/0-9]")
+    (year "[-/]" month "[-/]" day "[^0-9]")
+    (month "월 " day "일" "[^0-9]")
+    (year "년 " month "월 " day "일" "[^0-9]")
+    (dayname "\\W"))
+  "*List of pseudo-patterns describing the Korean patterns of date used.
+See the documentation of `diary-date-forms' for an explanation.")
+
+(setq diary-date-forms diary-korean-date-forms)
+
+(setq diary-modify-entry-list-string-function
+       'calendar-modify-diary-entry-string)
+
+(defun diary-lunar-date (month day year &optional leap mark)
+  "Specific date(s) diary entry."
+  (let* (
+         (l-leap (if leap " (윤)" ""))
+         (datestr (format "%d월 %d일%s" month day l-leap))
+         (c-l-date (lunar-ko-lunar-date (or date (calendar-current-date))))
+         (c-l-y (lunar-ko-year c-l-date))
+         (c-l-m (lunar-ko-month c-l-date))
+         (c-l-d (lunar-ko-day c-l-date))
+         (c-l-leap (lunar-ko-leap? c-l-date))
+         )
+    (if (and
+         (equal year c-l-y)
+         (equal month c-l-m)
+         (equal day c-l-d)
+         (equal leap c-l-leap)
+         )
+        (cons mark (format (replace-regexp-in-string "[\t ]+" "" entry) (format "음력 %s" datestr))))))
+
+(defun diary-lunar-anniversary (month day &optional leap mark)
+  "Specific date(s) diary entry."
+  (let* (
+         (l-leap (if leap " (윤)" ""))
+         (datestr (format "%d월 %d일%s" month day l-leap))
+         (c-l-date (lunar-ko-lunar-date (or date (calendar-current-date))))
+         (c-l-m (lunar-ko-month c-l-date))
+         (c-l-d (lunar-ko-day c-l-date))
+         (c-l-leap (lunar-ko-leap? c-l-date))
+         )
+    (if (and
+         (equal month c-l-m)
+         (equal day c-l-d)
+         (equal leap c-l-leap)
+         )
+        (cons mark (format (replace-regexp-in-string "[\t ]+" "" entry) (format "음력 %s" datestr))))))
+
+(defun diary-solar-24term (solar-term &optional mark)
+  "A holiday(STR) on SOLAR-TERM day."
+  (let* (
+         (c-date (or date (calendar-current-date)))
+         (y (extract-calendar-year c-date))
+         (m (extract-calendar-month c-date))
+         (d (extract-calendar-day c-date)))
+    (cal-korea-x-sync-solar-term y)
+    (let ((l cal-korea-x-solar-term-alist)
+          date)
+      (dolist (i l)
+        (when (string= (cdr i) solar-term)
+          (setq l '()
+                date (car i))))
+      (let (
+            (s-m (car date))
+            (s-d (cadr date)))
+        (if (and
+             (equal s-m m)
+             (equal s-d d))
+            (cons mark (replace-regexp-in-string "[\t ]+" "" entry)))))))
 
 (provide 'cal-korea-x)
 ;;; cal-korea-x.el ends here
